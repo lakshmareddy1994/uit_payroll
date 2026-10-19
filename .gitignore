@@ -4,3 +4,4 @@ __pycache__/
 .databricks/
 static/
 .env
+package-lock.json
