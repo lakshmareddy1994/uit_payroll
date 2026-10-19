@@ -1,3 +1,4 @@
 fastapi
 uvicorn
 databricks-sdk
+python-dotenv
