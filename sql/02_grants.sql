@@ -1,25 +1,29 @@
 -- =====================================================================
--- Access setup. Replace the placeholders, then run as the catalog owner/admin.
+-- Access setup. Run as the catalog owner/admin after replacing placeholders.
 --
--- <APP_SP>  = your app's service principal. In the Databricks UI open
---             Compute -> Apps -> <your app> and copy the service principal's
---             application (client) ID. Keep the backticks.
+-- Dashboard queries run as the signed-in user, not the app service principal.
+-- Put viewers in the `payroll-viewers` group (or replace that name).
+-- Each member also needs Can use on the app.
+-- Views run with the owner's rights, so this group does not get `raw`.
 -- =====================================================================
 
--- A) The APP: read-only access to the reporting schema ONLY.
---    (Views run with the owner's rights, so the app does NOT need access to `raw`.)
-GRANT USE CATALOG ON CATALOG payroll_demo           TO 'app-58y9i8 catalog-dashboard';
-GRANT USE SCHEMA  ON SCHEMA  payroll_demo.reporting TO 'app-58y9i8 catalog-dashboard';
-GRANT SELECT      ON SCHEMA  payroll_demo.reporting TO 'app-58y9i8 catalog-dashboard';
+-- A) Take reporting access away from the app service principal.
+REVOKE USE CATALOG ON CATALOG payroll_demo           FROM 'app-58y9i8 catalog-dashboard';
+REVOKE USE SCHEMA  ON SCHEMA  payroll_demo.reporting FROM 'app-58y9i8 catalog-dashboard';
+REVOKE SELECT      ON SCHEMA  payroll_demo.reporting FROM 'app-58y9i8 catalog-dashboard';
 
--- B) Humans (optional, use groups, not individual users):
--- Payroll/HR team: full access to raw data
+-- B) Viewers: aggregated reporting schema only.
+GRANT USE CATALOG ON CATALOG payroll_demo TO `payroll-viewers`;
+GRANT USE SCHEMA, SELECT ON SCHEMA payroll_demo.reporting TO `payroll-viewers`;
+
+-- C) The same people must be allowed to run SQL on the warehouse attached to the app.
+--    Replace <WAREHOUSE_NAME> with that warehouse's name, then run this statement.
+-- GRANT CAN USE ON WAREHOUSE <WAREHOUSE_NAME> TO `payroll-viewers`;
+
+-- D) Payroll/HR team: raw data (optional; not required to open the dashboard)
 -- GRANT USE CATALOG ON CATALOG payroll_demo TO `hr-payroll-admins`;
 -- GRANT USE SCHEMA, SELECT ON SCHEMA payroll_demo.raw TO `hr-payroll-admins`;
--- Managers/analysts: dashboards only
--- GRANT USE CATALOG ON CATALOG payroll_demo TO `payroll-viewers`;
--- GRANT USE SCHEMA, SELECT ON SCHEMA payroll_demo.reporting TO `payroll-viewers`;
 
--- C) Verify
+-- E) Verify. The app service principal must not appear on either schema.
 SHOW GRANTS ON SCHEMA payroll_demo.reporting;
-SHOW GRANTS ON SCHEMA payroll_demo.raw;   -- the app SP must NOT appear here
+SHOW GRANTS ON SCHEMA payroll_demo.raw;

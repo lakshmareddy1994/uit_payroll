@@ -1,4 +1,6 @@
 command: ["python", "app.py"]
+# The SQL connector uses the signed-in user's token, not the app service principal.
+# User-authorization scope sql:restricted-query is set on the app. See README.
 env:
   - name: DATABRICKS_WAREHOUSE_ID
     valueFrom: sql-warehouse        # resource key you add under the app's Resources
