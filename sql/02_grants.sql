@@ -1,29 +1,24 @@
 -- =====================================================================
--- Access setup. Run as the catalog owner/admin after replacing placeholders.
+-- Access setup. Run as the catalog owner/admin.
 --
 -- Dashboard queries run as the signed-in user, not the app service principal.
--- Put viewers in the `payroll-viewers` group (or replace that name).
--- Each member also needs Can use on the app.
--- Views run with the owner's rights, so this group does not get `raw`.
+--
+-- The owner of the catalog and the SQL warehouse already has full access.
+-- Do not GRANT to that owner. GRANT is only for someone else who will open
+-- the app and does not own these objects.
 -- =====================================================================
 
 -- A) Take reporting access away from the app service principal.
+--    The owner's own access is unchanged.
 REVOKE USE CATALOG ON CATALOG payroll_demo           FROM 'app-58y9i8 catalog-dashboard';
 REVOKE USE SCHEMA  ON SCHEMA  payroll_demo.reporting FROM 'app-58y9i8 catalog-dashboard';
 REVOKE SELECT      ON SCHEMA  payroll_demo.reporting FROM 'app-58y9i8 catalog-dashboard';
 
--- B) Viewers: aggregated reporting schema only.
-GRANT USE CATALOG ON CATALOG payroll_demo TO `payroll-viewers`;
-GRANT USE SCHEMA, SELECT ON SCHEMA payroll_demo.reporting TO `payroll-viewers`;
+-- B) Another person, later. Replace the email. Skip this while only the owner uses the app.
+-- GRANT USE CATALOG ON CATALOG payroll_demo TO `someone@company.com`;
+-- GRANT USE SCHEMA, SELECT ON SCHEMA payroll_demo.reporting TO `someone@company.com`;
+-- GRANT USAGE ON WAREHOUSE <WAREHOUSE_NAME> TO `someone@company.com`;
 
--- C) The same people must be allowed to run SQL on the warehouse attached to the app.
---    Replace <WAREHOUSE_NAME> with that warehouse's name, then run this statement.
--- GRANT CAN USE ON WAREHOUSE <WAREHOUSE_NAME> TO `payroll-viewers`;
-
--- D) Payroll/HR team: raw data (optional; not required to open the dashboard)
--- GRANT USE CATALOG ON CATALOG payroll_demo TO `hr-payroll-admins`;
--- GRANT USE SCHEMA, SELECT ON SCHEMA payroll_demo.raw TO `hr-payroll-admins`;
-
--- E) Verify. The app service principal must not appear on either schema.
+-- C) Verify. The app service principal must not appear on either schema.
 SHOW GRANTS ON SCHEMA payroll_demo.reporting;
 SHOW GRANTS ON SCHEMA payroll_demo.raw;

@@ -35,8 +35,13 @@ def connect(request: Request):
     """
     if not WAREHOUSE_ID:
         raise HTTPException(500, "DATABRICKS_WAREHOUSE_ID is not set")
-    http_path = f"/sql/1.0/warehouses/{WAREHOUSE_ID}"
-    token = request.headers.get("x-forwarded-access-token")
+    http_path = f"/sql/1.0/warehouses/{WAREHOUSE_ID.strip()}"
+    token = (request.headers.get("x-forwarded-access-token") or "").strip()
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
+    # Small dashboard results stay inline. Cloud fetch pulls result files from
+    # storage, which the app runtime often cannot reach.
+    connect_kwargs = {"use_cloud_fetch": False}
     if token:
         host = os.getenv("DATABRICKS_HOST")
         if not host:
@@ -45,6 +50,7 @@ def connect(request: Request):
             server_hostname=_hostname(host),
             http_path=http_path,
             access_token=token,
+            **connect_kwargs,
         )
     if os.getenv("DATABRICKS_CLIENT_ID") or os.getenv("DATABRICKS_CLIENT_SECRET"):
         raise HTTPException(401, "User access token was not forwarded")
@@ -58,6 +64,7 @@ def connect(request: Request):
         server_hostname=_hostname(cfg.host),
         http_path=http_path,
         credentials_provider=lambda: cfg.authenticate,
+        **connect_kwargs,
     )
 
 
@@ -80,6 +87,25 @@ def _json_value(value):
     return value
 
 
+def _query_error(exc: DatabricksSqlError) -> str:
+    # The connector's own message is often only "Error during request to server".
+    # The HTTP status and original exception are on exc.context.
+    context = getattr(exc, "context", None) or {}
+    extra = []
+    if context.get("http-code"):
+        extra.append(f"HTTP {context['http-code']}")
+    for key in ("error-message", "original-exception"):
+        value = context.get(key)
+        if value and str(value) not in str(exc):
+            extra.append(str(value))
+    detail = str(exc)
+    if extra:
+        detail = f"{detail}: {'; '.join(extra)}"
+    if len(detail) > 500:
+        detail = detail[:500] + "..."
+    return f"Query failed: {detail}"
+
+
 def run_query(request: Request, statement: str) -> list[dict]:
     try:
         with connect(request) as connection:
@@ -88,7 +114,7 @@ def run_query(request: Request, statement: str) -> list[dict]:
                 columns = [col[0] for col in (cursor.description or [])]
                 fetched = cursor.fetchall()
     except DatabricksSqlError as exc:
-        raise HTTPException(500, f"Query failed: {exc}") from exc
+        raise HTTPException(500, _query_error(exc)) from exc
     return [
         {name: _json_value(value) for name, value in zip(columns, row)}
         for row in fetched
