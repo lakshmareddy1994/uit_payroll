@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import GenieChat from "./GenieChat.jsx";
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -113,6 +114,8 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      <GenieChat />
 
       <div className="card">
         <h2>Department breakdown</h2>

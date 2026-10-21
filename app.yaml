@@ -1,6 +1,6 @@
 command: ["python", "app.py"]
-# The SQL connector uses the signed-in user's token, not the app service principal.
-# User-authorization scope sql:restricted-query is set on the app. See README.
+# SQL and Genie both use the signed-in user's token, not the app service principal.
+# user_api_scopes must include sql and genie. See README.
 env:
   - name: DATABRICKS_WAREHOUSE_ID
     valueFrom: sql-warehouse        # resource key you add under the app's Resources
@@ -8,3 +8,7 @@ env:
     value: "payroll_demo"
   - name: SCHEMA
     value: "reporting"
+  # Uncomment after the Genie agent is attached to this app with resource key genie-space
+  # and permission Can run. Deploy fails if this line is active and the resource is missing.
+  - name: GENIE_SPACE_ID
+    valueFrom: genie-space
