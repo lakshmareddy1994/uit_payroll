@@ -11,6 +11,9 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+
+from genie import ask as genie_ask, configured as genie_configured, message_view as genie_message_view
 
 BASE_DIR = Path(__file__).parent
 load_dotenv(BASE_DIR / ".env")
@@ -127,7 +130,31 @@ api = APIRouter(prefix="/api")
 
 @api.get("/health")
 def health():
-    return {"status": "ok", "service": "payroll-dashboard"}
+    return {"status": "ok", "service": "payroll-dashboard", "genie": genie_configured()}
+
+
+class GenieAskBody(BaseModel):
+    content: str
+    conversation_id: str | None = Field(default=None)
+
+
+@api.get("/genie/config")
+def genie_config():
+    return {"configured": genie_configured()}
+
+
+@api.post("/genie/ask")
+def genie_ask_route(body: GenieAskBody, request: Request):
+    """Start a Genie turn, or continue one when conversation_id is sent.
+
+    Returns immediately. The chat polls /api/genie/messages until Genie finishes.
+    """
+    return genie_ask(request, body.content, body.conversation_id)
+
+
+@api.get("/genie/messages/{conversation_id}/{message_id}")
+def genie_message_route(conversation_id: str, message_id: str, request: Request):
+    return genie_message_view(request, conversation_id, message_id)
 
 
 @api.get("/payroll/summary")
